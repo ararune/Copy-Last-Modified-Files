@@ -1,5 +1,5 @@
 # Copy-Last-Modified-Files
-Node JS app to copy last modified file from each subdirectory within a directory. The files are copied into Output folder, the names of copied files are modified to match the name of their folder name's origin.
+Node JS app to copy last modified file from each subdirectory within a directory. The files are copied into Output folder, the names of copied files are modified to match the name of their folder name's origin. Using Promises so that multiple folders can be accessed in parallel, thus making use of multiple CPU cores, if available.
 
 ```js
 // Create output directory if it doesn't exist
