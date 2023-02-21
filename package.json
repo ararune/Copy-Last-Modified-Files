@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "name": "lama",
+  "version": "1.0.0",
+  "description": "an app to loop through a directory and copies the latest filee from each folder with a modified name matching the name of the parent folder",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7"
+  }
+}
