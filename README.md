@@ -51,7 +51,6 @@ function sortFilesByModifiedDate(files, folderPath) {
 function copyPDFToOutputDirectory(filePath, folder, outputDir) {
     const outputFilePath = join(outputDir, `${folder}.pdf`);
     copyFileSync(filePath, outputFilePath);
-    console.log(`Copied PDF file to: ${outputFilePath}`);
     return outputFilePath;
 }
 
@@ -75,7 +74,6 @@ async function processFolders(logFilePath, folders) {
         } else {
             const log = `No PDF files found in ${folderPath}\n`;
             await appendLog(logFilePath, log)
-            console.log(log);
         }
     }
 }
@@ -90,7 +88,6 @@ function main() {
     createOutputDirectory();
     const folders = getSubfolders(startRange, endRange);
     const log = `Processing folders in ${sourceDir}: ${folders.join(', ')}\n`;
-    console.log(log);
     const logFilePath = createLog();
     appendLog(logFilePath, log);
     processFolders(logFilePath, folders);
