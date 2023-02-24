@@ -36,7 +36,8 @@ function getSubfolders(startRange = null, endRange = null) {
 // Create text document to store console logs
 function createLog() {
     const logFilePath = join(logOutputDir, 'console-log.txt');
-    writeFileSync(logFilePath, `Console log from ${new Date().toLocaleString()}:\n`);
+    const log = `Console log from ${new Date().toLocaleString()}:\n`;
+    appendLog(logFilePath, log);
     return logFilePath;
 }
 
