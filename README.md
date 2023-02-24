@@ -2,10 +2,10 @@
 Node JS app to copy last modified file from each subdirectory within a directory. The files are copied into Output folder, the names of copied files are modified to match the name of their folder name's origin. 
 
 ```js
-// This version filters only .pdf files and has startsWith range filter for subdirectories
-const { existsSync, mkdirSync, readdirSync, writeFileSync, statSync, appendFileSync, createReadStream, createWriteStream } = require('fs');
-const { join } = require('path');
+const { existsSync, mkdirSync, readdirSync, writeFileSync, statSync, copyFileSync, appendFileSync } = require('fs');
+const { join, extname } = require('path');
 
+console.time('myApp');
 const sourceDir = 'C:/Users/ararune/Desktop/PRAKSA';
 const outputDir = 'C:/Users/ararune/Desktop/Output';
 const logOutputDir = 'C:/Users/ararune/Desktop';
@@ -23,70 +23,16 @@ function createOutputDirectory() {
 // Read all subfolders in sourceDir which are within parameter range, if arguments are omitted, the function returns all subfolders
 function getSubfolders(startRange = null, endRange = null) {
     return readdirSync(sourceDir, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .filter(d => {
-            if (startRange && endRange) {
-                const folderNum = parseInt(d.name);
-                return !isNaN(folderNum) && folderNum >= startRange && folderNum <= endRange && d.name.startsWith(folderNum.toString());
-            }
-            return true;
-        })
-        .map(d => d.name);
-}
-
-// Copy PDF file to output directory with modified name matching the origin folder's name
-function copyPDFToOutputDirectory(filePath, folder, outputDir) {
-    const outputFilePath = join(outputDir, `${folder}.pdf`);
-    const readStream = createReadStream(filePath);
-    const writeStream = createWriteStream(outputFilePath);
-
-    readStream.on('error', err => {
-        console.error(`Error reading file: ${err}`);
-    });
-    writeStream.on('error', err => {
-        console.error(`Error writing file: ${err}`);
-    });
-
-    writeStream.on('close', () => {
-        console.log(`Copied PDF file to: ${outputFilePath}`);
-    });
-
-    readStream.pipe(writeStream);
-
-    return outputFilePath;
-}
-
-// Process each folder and copy the last modified PDF file to output directory
-function processFolders(logFilePath, folders) {
-    for (const folder of folders) {
-        const pdfFiles = getPdfFilesInFolder(folder);
-        if (pdfFiles.length > 0) {
-            const lastModifiedPdfFile = getLastModifiedFile(pdfFiles);
-            const filePath = join(sourceDir, folder, lastModifiedPdfFile.name);
-            const outputFilePath = copyPDFToOutputDirectory(filePath, folder, outputDir);
-            const log = `Copied PDF file from ${filePath} to ${outputFilePath} at ${new Date().toLocaleString()}\n`;
-            appendLog(logFilePath, log);
-            console.log(`Copying PDF file: ${filePath}`);
-        } else {
-            const log = `No PDF files found in ${join(outputDir, `${folder}`)}\n`;
-            appendLog(logFilePath, log);
-            console.log(log);
+      .filter(d => d.isDirectory())
+      .filter(d => {
+        if (startRange && endRange) {
+          const folderNum = parseInt(d.name);
+          return !isNaN(folderNum) && folderNum >= startRange && folderNum <= endRange && d.name.startsWith(folderNum.toString());
         }
-    }
-}
-
-function getPdfFilesInFolder(folder) {
-    const folderPath = join(sourceDir, folder);
-    const files = readdirSync(folderPath, { withFileTypes: true });
-    return files.filter(file => file.isFile() && file.name.toLowerCase().endsWith('.pdf'));
-}
-
-function getLastModifiedFile(files) {
-    return files.reduce((lastModifiedFile, file) => {
-        const modifiedTime = file.mtimeMs;
-        return (!lastModifiedFile || lastModifiedFile.modifiedTime < modifiedTime) ? { name: file.name, modifiedTime } : lastModifiedFile;
-    }, null);
-}
+        return true;
+      })
+      .map(d => d.name);
+  }
 // Create text document to store console logs
 function createLog() {
     const logFilePath = join(logOutputDir, 'console-log.txt');
@@ -94,9 +40,50 @@ function createLog() {
     return logFilePath;
 }
 
+// Sort files by last modified time
+function sortFilesByModifiedDate(files, folderPath) {
+    return files.sort((a, b) => {
+        return statSync(join(folderPath, b.name)).mtime.getTime() - statSync(join(folderPath, a.name)).mtime.getTime();
+    });
+}
+
+// Copy PDF file to output directory with modified name matching the origin folder's name
+function copyPDFToOutputDirectory(filePath, folder, outputDir) {
+    const outputFilePath = join(outputDir, `${folder}.pdf`);
+    copyFileSync(filePath, outputFilePath);
+    console.log(`Copied PDF file to: ${outputFilePath}`);
+    return outputFilePath;
+}
+
+// Process each folder and copy the last modified PDF file to output directory
+async function processFolders(logFilePath, folders) {
+    for (const folder of folders) {
+        const folderPath = join(sourceDir, folder);
+        const files = readdirSync(folderPath, { withFileTypes: true });
+        const PDFFilesToCopy = files.filter(f => f.isFile() && extname(f.name).toLowerCase() === '.pdf');
+        console.log(`\nProcessing PDF files in ${folderPath}:`);
+
+        const sortedPDFFiles = sortFilesByModifiedDate(PDFFilesToCopy, folderPath);
+
+        if (sortedPDFFiles.length > 0) {
+            const PDFFile = sortedPDFFiles[0];
+            const filePath = join(folderPath, PDFFile.name);
+            console.log(`Copying PDF file: ${filePath}`);
+            const outputFilePath = copyPDFToOutputDirectory(filePath, folder, outputDir);
+            const log = `Copied PDF file from ${filePath} to ${outputFilePath} at ${new Date().toLocaleString()}\n`;
+            await appendLog(logFilePath, log);
+        } else {
+            const log = `No PDF files found in ${folderPath}\n`;
+            await appendLog(logFilePath, log)
+            console.log(log);
+        }
+    }
+}
+
 // Add log to console log file
 function appendLog(logFilePath, log) {
     appendFileSync(logFilePath, log);
+    console.log(log.trim());
 }
 
 function main() {
@@ -107,12 +94,10 @@ function main() {
     const logFilePath = createLog();
     appendLog(logFilePath, log);
     processFolders(logFilePath, folders);
-    appendLog(logFilePath, '\nFinished processing folders');
-    console.log('\nFinished processing folders');
 }
 
 main();
-
+console.timeEnd('myApp');
 ```
 
 ```js
