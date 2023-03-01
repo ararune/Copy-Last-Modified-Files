@@ -2,6 +2,7 @@
 Node JS app to copy last modified file from each subdirectory within a directory. The files are copied into Output folder, the names of copied files are modified to match the name of their folder name's origin. 
 
 ```js
+const { time, timeEnd } = require('console');
 const { existsSync, mkdirSync, readdirSync, writeFileSync, statSync, copyFileSync, appendFileSync } = require('fs');
 const { join, extname } = require('path');
 
@@ -13,7 +14,7 @@ const startRange = undefined;
 const endRange = undefined;
 
 // Create output directory if it doesn't exist
-function createOutputDirectory() {
+function createOutputDirectory(outputDir) {
     if (!existsSync(outputDir)) {
         mkdirSync(outputDir);
         console.log(`Created output directory: ${outputDir}`);
@@ -41,16 +42,19 @@ function createLog() {
     return logFilePath;
 }
 
-// Sort files by last modified time
-function sortFilesByModifiedDate(files, folderPath) {
-    return files.sort((a, b) => {
-        return statSync(join(folderPath, b.name)).mtime.getTime() - statSync(join(folderPath, a.name)).mtime.getTime();
-    });
-}
-
 // Copy PDF file to output directory with modified name matching the origin folder's name
 function copyPDFToOutputDirectory(filePath, folder, outputDir) {
-    const outputFilePath = join(outputDir, `${folder}.pdf`);
+    const folderDir = join(outputDir, folder);
+    createOutputDirectory(folderDir);
+    const prefix = readdirSync(folderDir, { withFileTypes: true })
+        .filter(f => f.isFile() && extname(f.name).toLowerCase() === '.pdf')
+        .length === 0 ? 'pis' : 'pri';
+    let outputFilePath = join(folderDir, `${prefix}_${folder}.pdf`);
+    let count = 1;
+    while (existsSync(outputFilePath)) {
+        outputFilePath = join(folderDir, `${prefix}_${folder}(${count}).pdf`);
+        count++;
+    }
     copyFileSync(filePath, outputFilePath);
     return outputFilePath;
 }
@@ -63,21 +67,16 @@ async function processFolders(logFilePath, folders) {
         const PDFFilesToCopy = files.filter(f => f.isFile() && extname(f.name).toLowerCase() === '.pdf');
         console.log(`\nProcessing PDF files in ${folderPath}:`);
 
-        const sortedPDFFiles = sortFilesByModifiedDate(PDFFilesToCopy, folderPath);
-
-        if (sortedPDFFiles.length > 0) {
-            const PDFFile = sortedPDFFiles[0];
+        for (const PDFFile of PDFFilesToCopy) {
             const filePath = join(folderPath, PDFFile.name);
             console.log(`Copying PDF file: ${filePath}`);
             const outputFilePath = copyPDFToOutputDirectory(filePath, folder, outputDir);
             const log = `Copied PDF file from ${filePath} to ${outputFilePath} at ${new Date().toLocaleString()}\n`;
             await appendLog(logFilePath, log);
-        } else {
-            const log = `No PDF files found in ${folderPath}\n`;
-            await appendLog(logFilePath, log)
         }
     }
 }
+
 
 // Add log to console log file
 function appendLog(logFilePath, log) {
@@ -86,7 +85,7 @@ function appendLog(logFilePath, log) {
 }
 
 function main() {
-    createOutputDirectory();
+    createOutputDirectory(outputDir);
     const folders = getSubfolders(startRange, endRange);
     const log = `Processing folders in ${sourceDir}: ${folders.join(', ')}\n`;
     const logFilePath = createLog();
@@ -95,7 +94,7 @@ function main() {
 }
 
 main();
-console.timeEnd('myApp');
+console.timeEnd('MyApp');
 ```
 
 ```js
